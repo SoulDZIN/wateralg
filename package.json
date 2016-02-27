@@ -1,0 +1,14 @@
+{
+  "name": "wateralg",
+  "version": "1.0.0",
+  "description": "algorithm that solves the water fill problem with observables",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "souldzin",
+  "license": "ISC",
+  "dependencies": {
+    "rx": "^4.0.8"
+  }
+}
