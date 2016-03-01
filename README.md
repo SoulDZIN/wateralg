@@ -1,4 +1,4 @@
-# Water Alogorithm
+# Water Algorithm
 
 This is an implementation of the water fill problem.
 
