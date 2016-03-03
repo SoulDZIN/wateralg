@@ -1,4 +1,5 @@
 var SortedDictionary = require('./util/sorteddictionary.js');
+var Rx = require('rx');
 var util = require('util');
 var extend = util._extend;
 
@@ -7,6 +8,8 @@ function WaterStore(opt) {
     this._options = this._initOptions(opt);
     this._heightTable = new SortedDictionary();
     this._result = 0;
+    this._subjectElevate = new Rx.Subject();
+    this._subjectComplete = new Rx.Subject();
 }
 
 WaterStore.DEFAULT = {
@@ -23,10 +26,10 @@ extend(WaterStore.prototype, {
     // this method reads the next height and adds the possible amount of water storage to the
     // result
     // ------------
-    read: function(height, callbackObj) {
-        height = this._validate(height);
+    read: function(column) {
+        column = this._validate(column);
 
-        this._read(this._createPillar(height, callbackObj));
+        this._read(column);
     },
     
     // result()
@@ -43,52 +46,76 @@ extend(WaterStore.prototype, {
     // this method completes the WaterStore, disposing of any cached data, and 
     complete: function() {
         this._isComplete = true;
+
+        this._clearTable();
+        this._subjectElevate.onCompleted();
+        this._subjectComplete.onCompleted();
+    },
+
+    elevateObservable: function() {
+        return this._subjectElevate.asObservable();
+    },
+
+    completeObservable: function() {
+        return this._subjectComplete.asObservable();
+    },
+
+    asObserver: function() {
+        var self = this;
+        return Rx.Observer.create(
+            function(x) {
+                self.read(x);                
+            },
+            function(err) {
+                console.log("An error occurred in the WaterStoreObserver! Details: " + err);
+            },
+            function() {
+                self.complete();
+            });
+
     },
 
     // ------------------------
     // ### internal methods ###
     // ------------------------
 
-    _read: function(pillar) {
-        var findResult = this._heightTable.find(pillar.height);
-        var findIndex = findResult.index;
+    _read: function(column) {
         var count = this._heightTable.count();
 
-        this._insert(pillar, findResult.item);
+        var index = this._insert(column);
 
-        var closeIndex = findIndex;
-        var isLargest = closeIndex === count;
+        var isLargest = index === count;
 
         // if we just inserted the largest, then use the next heighest height
         if(isLargest) {
-            closeIndex -= 1;
+            index -= 1;
         }
 
-        this._elevateAndAggregate(closeIndex);
+        this._elevateToIndex(index);
 
         // get new count, and clean up if necessary
         count = this._heightTable.count();
 
         if(count === 1 || isLargest) {
             this._clearTable();
-            this._insert(pillar);
+            this._insert(column);
         }
     },
 
-    _elevateAndAggregate: function(index) {
+    _elevateToIndex: function(index) {
         if(index <= 0) {
             return; // nothing to elevate
         }
 
-        var item = this._heightTable.getAt(index);
-        var height = item.key();
-        var record = item.value();
+        var kvp = this._heightTable.getAt(index);
+        var height = kvp.key();
+        var record = kvp.value();
 
         for(var i = 0; i < index; i++) {
             // --- get closingItem and calculate total amount that will be elevated
-            var closingItem = this._heightTable.getAt(i);            
-            var closingHeight = closingItem.key();
-            var closingRecord = closingItem.value();
+            var closingKVP = this._heightTable.getAt(i);            
+            var closingHeight = closingKVP.key();
+            var closingRecord = closingKVP.value();
             var elevateHeight = height - closingHeight;
             var total = elevateHeight * closingRecord.width;
 
@@ -102,28 +129,42 @@ extend(WaterStore.prototype, {
         this._heightTable.remove(0, index);
     },
 
-    _insert: function(pillar, item) {
-        var record = null;
-        var height = pillar.height;
+    _insert: function(column) {
+        var height = column.height;
+        var searchResult = this._heightTable.find(height);
+        var index = searchResult.index;
+        var record = searchResult.item ? searchResult.item.value() : null;
 
-        if(item) {
-            record = item.value();
-        } else {
+        if(!record) {
             record = this._createRecord();
             this._heightTable.set(height, record);
         }
+        
+        this._addToRecord(record, column);
 
-        this._addToRecord(record, pillar);
+        return index;
     },
 
     _addToResult: function(add) {
         this._result += add;
     },
 
-    _validate: function(height) {
+    _validate: function(column) {
         if(this._isComplete) {
             throw new Error("WaterStore is complete and cannot read any more input");
         } 
+
+        var height = column;
+        var target = null;
+
+        if(typeof(column) === 'object') {
+            if(column === null) {
+                throw new Error("Invalid input: null");
+            } else {
+                height = column.height;
+                target = column.target;
+            }
+        }
 
         height = Number(height);
         
@@ -131,7 +172,7 @@ extend(WaterStore.prototype, {
             throw new Error("Invalid input: NaN");
         }
 
-        return height;
+        return this._createColumn(height, target);
     }, 
 
     _initOptions: function(opt) {
@@ -144,16 +185,13 @@ extend(WaterStore.prototype, {
         return options;
     },
 
-    // _createPillar
+    // _createColumn
     // -------------
-    // this creates a pillar object which is used in the _read method. Callbacks are used to trigger when elevation happens on this specific pillar.
-    // callbackObj is optional, but makes it possible to create a view.
-    //
-    // callbackObj: { onElevate: <function>, onComplete: <function> }
+    // this creates a column object which is used in the _read method. The "obj" is passed onto the Elevate and Complete observable.
     // -------------
 
-    _createPillar: function(height, callbackObj) {
-        return { height: height, callback: callbackObj };
+    _createColumn: function(height, obj) {
+        return { height: height, target: obj };
     },
 
     // _createRecord()
@@ -161,7 +199,7 @@ extend(WaterStore.prototype, {
     // this creates an initial record to save in the heightTablee
     // ---------------
     _createRecord: function() {
-        return { width: 0, callbacks: [] }; 
+        return { width: 0, columns: [] }; 
     },
 
     _clearTable: function() {
@@ -170,7 +208,7 @@ extend(WaterStore.prototype, {
         for(var i = 0; i < count; i++) {
             var item = this._heightTable.getAt(i);
             var record = item.value();
-            this._callCompleteRecord(record);
+            this._triggerComplete(record);
         }
 
         this._heightTable.removeAll();
@@ -178,39 +216,47 @@ extend(WaterStore.prototype, {
 
     _elevateRecord: function(source, elevateHeight, dest) {
         // --- callbacks
-        this._callElevateRecord(source, elevateHeight);
+        this._triggerElevate(source, elevateHeight);
 
         // --- add to dest
 
         dest.width += source.width;
-        dest.callbacks = dest.callbacks.concat(source.callbacks);
+        dest.columns = dest.columns.concat(source.columns);
     },
 
-    _addToRecord: function(record, pillar) {
+    _addToRecord: function(record, column) {
         record.width++;
-        if(pillar.callback) {
-            record.callbacks.push(pillar.callback);
+        if(column.target) {
+            record.columns.push(column.target);
         }
     },
 
-    _callCompleteRecord: function(record) {
-        this._callRecord(record, 'onComplete');
+    _triggerComplete: function(record) {
+        var args = record.columns.map(function(x) {
+            return {
+                target: x
+            };
+        });
+
+        this._trigger(this._subjectComplete, args);
     },
 
-    _callElevateRecord: function(record, elevateHeight) {
-        this._callRecord(record, 'onElevate', [elevateHeight]);
+    _triggerElevate: function(record, elevateHeight) {
+        var args = record.columns.map(function(x) {
+            return {
+                target: x,
+                height: elevateHeight
+            };
+        });
+
+        this._trigger(this._subjectElevate, args);
     },
 
-    _callRecord: function(record, name, args) {
-        for(var i = 0; i < record.callbacks.length; i++) {
-            var callbackObj = record.callbacks[i];
-            var callbackFn = callbackObj[fn];
-            if(callbackFn) {
-                callbackFn.apply(this, args || []);
-            }
-        }
+    _trigger: function(subject, args) {
+        Rx.Observable.from(args).subscribe(function(x){
+            subject.onNext(x);
+        });
     }
-
 });
 
 module.exports = WaterStore;

@@ -4,7 +4,7 @@
   "description": "algorithm that solves the water fill problem with observables",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node tests/consoleTest.js"
   },
   "author": "souldzin",
   "license": "ISC",
