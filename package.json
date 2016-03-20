@@ -4,11 +4,28 @@
   "description": "algorithm that solves the water fill problem with observables",
   "main": "index.js",
   "scripts": {
-    "test": "node tests/consoleTest.js"
+    "test": "node tests/consoleTest.js",
+    "test-graphical": "start \"\" \"./tests/graphical/index.html\""
   },
   "author": "souldzin",
   "license": "ISC",
   "dependencies": {
     "rx": "^4.0.8"
+  },
+  "browserify": {
+    "transform": [
+      "browserify-shim"
+    ]
+  },
+  "browserify-shim": {
+    "jquery": "global:$"
+  },
+  "devDependencies": {
+    "browserify": "^13.0.0",
+    "browserify-shim": "^3.8.12",
+    "gulp": "^3.9.1",
+    "gulp-uglify": "^1.5.3",
+    "vinyl-buffer": "^1.0.0",
+    "vinyl-source-stream": "^1.1.0"
   }
 }

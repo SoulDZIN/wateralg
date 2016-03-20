@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Graphical Demo of Waterfill Algorithm</title>
+        <style>
+            html, body {
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                background-color: #3C3C3C;
+            }
+            #viewport-main {
+                position: absolute;
+                top: 0;
+                bottom: 80px;
+                width: 100%;
+                text-align: center;
+                overflow: hidden; /* this is helpful when calculating size (browser doesn't add scroll width / height) */
+            }
+            #viewport-main canvas {
+                margin: auto;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="viewport-main">
+            <canvas width="800" height="500"></canvas>
+        </div>
+        <script src="https://code.jquery.com/jquery-1.12.1.min.js"></script>
+        <script src="scripts/main.bundle.js"></script>
+        <script>
+            main({
+                canvas: $("#viewport-main canvas")
+            });
+        </script>
+    </body>
+</html>
