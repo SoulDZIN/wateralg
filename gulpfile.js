@@ -26,7 +26,7 @@ function handleErrors() {
 
 function buildScript( filePath, watch ) {
     var details = path.parse( filePath );
-    var outFile = details.base + '.bundle' + details.ext;
+    var outFile = details.name + '.bundle' + details.ext;
     var outDir = details.dir;
 
     var props = { entries: [filePath], debug: true, cache: {}, packageCache: {} };
