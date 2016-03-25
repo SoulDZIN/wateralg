@@ -1,20 +1,28 @@
 var $ = require('jquery');
+var graphicalTest = require('./lib/graphicalTest');
 
-var _resources =  {};
+function start(opt) {
+    if(!opt.canvas) {
+        throw new Error("Expected 'canvas' in options");
+    }
+    if(!opt.canvas.main) {
+        throw new Error("Expected 'canvas.main' in options");
+    }
+    
+    var $canvas = $(opt.canvas);
+
+    if(opt.canvas.debug) {
+
+    }
+
+
+}
 
 function draw(canvas) {
     var ctx = canvas.getContext('2d');
     var dim = getSize(canvas);
 
-    drawBackgorund(ctx, dim);
     drawSquares(ctx);
-}
-
-function drawBackgorund(ctx, dim) {
-    var image = _resources.wallpaper;
-    var pattern = ctx.createPattern(image, 'repeat');
-    ctx.fillStyle = pattern;
-    ctx.fillRect(0,0,dim.width,dim.height);
 }
 
 function drawSquares(ctx) {
@@ -23,20 +31,6 @@ function drawSquares(ctx) {
 
     ctx.fillStyle = "rgba(0,0,200,0.5)";
     ctx.fillRect (30, 30, 55, 50);
-}
-
-function loadResources(callback) {
-    var resources = {};
-    
-    // load background
-    var img = new Image();
-    img.src = 'resources/wallpaper.png';
-    img.onload = function() {
-        resources.wallpaper = img;
-        callback();
-    };
-
-    return resources;
 }
 
 function getSize(canvas) {
@@ -76,11 +70,7 @@ function start(opt) {
         draw(canvas);
     });
 
-    _resources = loadResources(onLoadResources);
-
-    function onLoadResources(){
-        draw(canvas);
-    }
+    draw(canvas);
 }
 
 function main(opt) {
