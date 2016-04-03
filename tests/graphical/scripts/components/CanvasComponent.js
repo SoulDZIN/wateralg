@@ -1,20 +1,56 @@
-var $ = require('jquery');
-var WaterWorld = require('./models/waterWorld');
+var $ = require('jQuery');
+var resizer = require('ElementResizer');
+var extend = $.extend;
 
-function start(opt) {
-    if(!opt.canvas) {
-        throw new Error("Expected 'canvas' in options");
+function CanvasComponent(canvas) {
+    if(!canvas) {
+        throw new Error("'canvas' is require");
     }
-    if(!opt.canvas.main) {
-        throw new Error("Expected 'canvas.main' in options");
-    }
-    
-    var $canvas = $(opt.canvas);
 
-    if(opt.canvas.debug) {
-
-    }
+    this._canvas = canvas;
+    this._ctx = this._canvas.getContext('2d');
+    this._components = [];
+    this._resizer = resizer
+        .create(this._canvas)
+        .start();
 }
+
+extend(CanvasComponent.prototype, {
+    paint: function(timestamp) {
+        if (!this._quit) {
+            this._requestFrame();
+        }
+
+        var self = this;
+
+        this._components
+            .filter(function(comp){
+                return this._shouldPaint(comp);                
+            })
+            .forEach(function(){
+                comp.paint(ctx, timestamp);
+            });
+    },
+    stop: function() {
+        this._quit = true;
+    },
+    start: function() {
+        this._quit = false;
+        this._requestFrame();
+    },
+    _shouldPaint: function(comp) {
+        return true;
+    },
+    _requestFrame: function() {
+        var self = this;
+        window.requestAnimationFrame(function(ts){
+            self.paint(ts);
+        });
+    }
+
+
+});
+
 
 function draw(canvas) {
     var ctx = canvas.getContext('2d');
